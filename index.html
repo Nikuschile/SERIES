@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no,viewport-fit=cover">
+    <meta name="theme-color" content="#0d0d1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="description" content="Registra tus series y comparti los avances con tu familia">
+    <link rel="manifest" href="manifest.json">
+    <title>SeriesTracker</title>
+    <style>
+        *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+        html,body{height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif}
+        body{background:#0d0d1a;color:#e0e0e0;display:flex;flex-direction:column;position:relative;-webkit-tap-highlight-color:transparent}
+        ::-webkit-scrollbar{width:4px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+
+        header{
+            display:flex;align-items:center;justify-content:space-between;
+            padding:10px 16px;background:#12122a;border-bottom:1px solid #2a2a4a;
+            flex-shrink:0;min-height:52px;z-index:10
+        }
+        header h1{font-size:18px;font-weight:700;color:#bb86fc}
+        header button{
+            background:none;border:none;color:#888;font-size:20px;padding:6px 8px;border-radius:8px;cursor:pointer
+        }
+        header button:active{background:#1a1a3a;color:#fff}
+
+        .view{display:none;flex:1;overflow-y:auto;padding:16px}
+        .view.active{display:flex;flex-direction:column}
+
+        .btn{
+            display:inline-flex;align-items:center;justify-content:center;gap:6px;
+            padding:12px 20px;border:none;border-radius:10px;
+            font-size:15px;font-weight:600;cursor:pointer;transition:all 0.15s;min-height:46px
+        }
+        .btn-p{background:#bb86fc;color:#0d0d1a}
+        .btn-p:active{transform:scale(0.97)}
+        .btn-s{background:#2a2a4a;color:#e0e0e0}
+        .btn-s:active{background:#3a3a5a}
+        .btn-d{background:#cf6679;color:#fff}
+        .btn-d:active{background:#b85466}
+        .btn-sm{padding:7px 14px;font-size:12px;min-height:32px;border-radius:6px}
+        .btn-full{width:100%}
+        .btn:disabled{opacity:0.4;pointer-events:none}
+
+        #view-dashboard{padding:16px 16px 80px}
+        .stats-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px}
+        .stat-card{background:#1a1a35;border-radius:10px;padding:12px 8px;text-align:center;border:1px solid #2a2a4a}
+        .stat-card .num{font-size:22px;font-weight:700;color:#bb86fc;display:block}
+        .stat-card .label{font-size:10px;color:#888;margin-top:2px;text-transform:uppercase}
+        .section-title{font-size:13px;font-weight:600;color:#aaa;text-transform:uppercase;letter-spacing:.8px;margin:14px 0 8px}
+        .empty-state{text-align:center;padding:40px 20px;color:#555;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
+        .empty-state .icon{font-size:40px;color:#333}
+        .empty-state p{font-size:14px;line-height:1.5}
+
+        .h-list{display:flex;flex-direction:column;gap:6px}
+        .h-item{
+            background:#1a1a35;border-radius:10px;padding:8px 12px;
+            display:flex;align-items:center;gap:10px;border:1px solid #2a2a4a;cursor:pointer
+        }
+        .h-item:active{border-color:#bb86fc}
+        .h-item .th{width:38px;height:54px;border-radius:5px;background:#2a2a4a;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:16px;color:#555}
+        .h-item .th img{width:100%;height:100%;object-fit:cover}
+        .h-item .inf{flex:1;min-width:0}
+        .h-item .inf .n{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .h-item .inf .s{font-size:11px;color:#888;margin-top:1px}
+        .h-item .inf .d{font-size:10px;color:#555;margin-top:1px}
+        .h-item .del{
+            background:none;border:none;color:#555;font-size:18px;padding:4px 6px;cursor:pointer;border-radius:5px;flex-shrink:0
+        }
+        .h-item .del:active{color:#cf6679;background:#2a2a4a}
+        .bg{display:inline-block;background:#bb86fc22;color:#bb86fc;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600}
+        .fab{
+            position:fixed;bottom:24px;right:24px;z-index:100;
+            width:56px;height:56px;border-radius:50%;border:none;
+            background:#bb86fc;color:#0d0d1a;font-size:28px;font-weight:300;
+            cursor:pointer;box-shadow:0 4px 16px rgba(187,134,252,0.3);
+            display:flex;align-items:center;justify-content:center
+        }
+        .fab:active{transform:scale(0.92)}
+
+        #view-capture{padding:12px 16px}
+        .cap-top{display:flex;gap:10px;align-items:flex-start;margin-bottom:12px}
+        .cap-ph{width:100px;height:140px;border-radius:8px;background:#1a1a35;border:1px solid #2a2a4a;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center;position:relative}
+        .cap-ph img{width:100%;height:100%;object-fit:cover}
+        .cap-ph .pl{color:#444;text-align:center;font-size:11px;padding:6px;line-height:1.4}
+        .cap-btns{display:flex;flex-direction:column;gap:5px;flex:1}
+        .cap-btns .btn{min-height:38px;padding:8px;font-size:12px;border-radius:7px}
+        .srch-section{flex:1;display:flex;flex-direction:column;min-height:0}
+        .srch-box{position:relative;margin-bottom:8px}
+        .srch-box input{
+            width:100%;padding:12px 14px;border-radius:10px;border:1px solid #2a2a4a;
+            background:#1a1a35;color:#fff;font-size:15px;outline:none
+        }
+        .srch-box input:focus{border-color:#bb86fc}
+        .srch-box input::placeholder{color:#555}
+        .sr{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:6px;min-height:60px}
+        .sr .hint{color:#555;text-align:center;padding:16px;font-size:12px;line-height:1.5}
+        .sr .load{color:#888;text-align:center;padding:16px}
+        .sr .no{color:#777;text-align:center;padding:16px;font-size:13px}
+        .s-card{
+            display:flex;gap:10px;background:#1a1a35;border-radius:9px;padding:8px;
+            border:1px solid #2a2a4a;cursor:pointer
+        }
+        .s-card:active{border-color:#bb86fc;background:#1e1e40}
+        .s-card .po{width:40px;height:58px;border-radius:5px;background:#2a2a4a;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+        .s-card .po img{width:100%;height:100%;object-fit:cover}
+        .s-card .if{flex:1;min-width:0}
+        .s-card .if .nn{font-size:13px;font-weight:600}
+        .s-card .if .yy{font-size:10px;color:#888;margin-top:1px}
+        .s-card .if .oo{font-size:10px;color:#666;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+        .ep-banner{
+            display:flex;gap:12px;background:#1a1a35;border-radius:10px;padding:12px;
+            border:1px solid #2a2a4a;margin-bottom:14px
+        }
+        .ep-banner .po{width:50px;height:72px;border-radius:5px;background:#2a2a4a;flex-shrink:0;overflow:hidden;display:flex;align-items:center;justify-content:center}
+        .ep-banner .po img{width:100%;height:100%;object-fit:cover}
+        .ep-banner .if{flex:1;display:flex;flex-direction:column;justify-content:center}
+        .ep-banner .if h2{font-size:16px;font-weight:700;color:#fff}
+        .ep-banner .if .sb{font-size:11px;color:#888;margin-top:2px}
+        .ep-form{background:#1a1a35;border-radius:10px;padding:16px;border:1px solid #2a2a4a}
+        .f-row{display:flex;gap:10px;margin-bottom:12px}
+        .fg{flex:1}
+        .fg label{display:block;font-size:11px;color:#888;margin-bottom:4px;font-weight:500}
+        .fg select,.fg input{
+            width:100%;padding:10px 10px;border-radius:7px;border:1px solid #2a2a4a;
+            background:#12122a;color:#fff;font-size:14px;outline:none
+        }
+        .fg select:focus,.fg input:focus{border-color:#bb86fc}
+        .ep-list{margin-top:6px;max-height:160px;overflow-y:auto}
+        .ep-it{
+            display:flex;align-items:center;gap:6px;padding:7px 8px;border-radius:6px;
+            cursor:pointer;border:1px solid transparent
+        }
+        .ep-it:active{background:#1e1e40}
+        .ep-it.sel{border-color:#bb86fc;background:#1e1e40}
+        .ep-it .en{font-size:11px;color:#888;width:24px;flex-shrink:0}
+        .ep-it .enm{font-size:12px;color:#ddd;flex:1}
+        .edit-badge{
+            display:inline-flex;align-items:center;gap:4px;
+            background:#ff980022;color:#ff9800;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:600;margin-bottom:8px
+        }
+        .tag{display:inline-flex;align-items:center;gap:4px;background:#4caf5022;color:#4caf50;padding:2px 7px;border-radius:5px;font-size:10px;font-weight:600;margin-top:3px}
+        .tag-sug{background:#bb86fc22;color:#bb86fc}
+
+        .s-group{background:#1a1a35;border-radius:10px;padding:14px;border:1px solid #2a2a4a;margin-bottom:12px}
+        .s-group h3{font-size:13px;color:#aaa;margin-bottom:8px}
+        .s-group label{display:block;font-size:11px;color:#888;margin-bottom:3px}
+        .s-group input[type="text"],.s-group input[type="password"]{
+            width:100%;padding:10px 12px;border-radius:7px;border:1px solid #2a2a4a;
+            background:#12122a;color:#fff;font-size:14px;outline:none
+        }
+        .s-group input:focus{border-color:#bb86fc}
+        .help{font-size:11px;color:#555;margin-top:6px;line-height:1.5}
+        .help a{color:#bb86fc}
+        .share-box{
+            background:#1a1a35;border-radius:10px;padding:14px;border:1px solid #2a2a4a;margin-bottom:12px
+        }
+        .share-box h3{font-size:13px;color:#aaa;margin-bottom:6px}
+        .share-link{
+            background:#12122a;padding:10px 12px;border-radius:7px;font-size:11px;color:#888;word-break:break-all;margin-bottom:8px;border:1px solid #2a2a4a
+        }
+        .sync-status{font-size:11px;color:#888;margin-top:4px}
+        .sync-status.ok{color:#4caf50}
+        .sync-status.err{color:#cf6679}
+
+        .toast{
+            position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(100px);
+            background:#1e1e3a;color:#e0e0e0;padding:12px 20px;border-radius:10px;
+            font-size:13px;box-shadow:0 6px 24px rgba(0,0,0,0.5);
+            border:1px solid #2a2a4a;z-index:200;opacity:0;
+            transition:all 0.3s;pointer-events:none;text-align:center;max-width:90%
+        }
+        .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+        .toast.ok{border-color:#4caf50}
+        .toast.err{border-color:#cf6679}
+        .hidden{display:none!important}
+        .mt-8{margin-top:8px}
+        .mt-12{margin-top:12px}
+        .flex-1{flex:1}
+        .p-8{padding:8px}
+        .text-c{text-align:center}
+        .fs-small{font-size:11px;color:#888}
+    </style>
+</head>
+<body>
+
+<header>
+    <h1 id="headerTitle">SeriesTracker</h1>
+    <div style="display:flex;gap:4px">
+        <button id="btnShare" title="Compartir" class="hidden">&#128279;</button>
+        <button id="btnSettings" title="Configuracion">&#9881;</button>
+    </div>
+</header>
+
+<!-- ===== DASHBOARD ===== -->
+<section id="view-dashboard" class="view active">
+    <div class="stats-row">
+        <div class="stat-card"><span class="num" id="statSeries">0</span><span class="label">Series</span></div>
+        <div class="stat-card"><span class="num" id="statEpisodes">0</span><span class="label">Episodios</span></div>
+        <div class="stat-card" id="statSharedCard" class="hidden">
+            <span class="num" id="statFamily">-</span>
+            <span class="label" id="statFamilyLabel">Compartido</span>
+        </div>
+    </div>
+    <div class="section-title">Historial</div>
+    <div id="historyContainer">
+        <div class="empty-state">
+            <div class="icon">&#128253;</div>
+            <p>Todavia no registraste episodios.<br>Toca + para empezar.</p>
+        </div>
+    </div>
+    <button class="fab" id="btnAddEntry">+</button>
+</section>
+
+<!-- ===== SHARED DASHBOARD (read-only, shown when ?shared=xxx) ===== -->
+<section id="view-shared" class="view">
+    <div class="stats-row">
+        <div class="stat-card"><span class="num" id="shStatSeries">0</span><span class="label">Series</span></div>
+        <div class="stat-card"><span class="num" id="shStatEpisodes">0</span><span class="label">Episodios</span></div>
+    </div>
+    <div class="section-title">Avances</div>
+    <div id="sharedHistoryContainer">
+        <div class="empty-state">
+            <div class="icon">&#128253;</div>
+            <p>Cargando avances compartidos...</p>
+        </div>
+    </div>
+    <div class="text-c p-8 fs-small">Los datos se actualizan automaticamente</div>
+</section>
+
+<!-- ===== CAPTURE ===== -->
+<section id="view-capture" class="view">
+    <div class="cap-top">
+        <div class="cap-ph" id="photoBox">
+            <div class="pl" id="photoPlaceholder">Toma o<br>selecciona<br>una foto</div>
+            <img id="photoPreview" class="hidden" alt="preview">
+        </div>
+        <div class="cap-btns">
+            <button class="btn btn-s" id="btnCam">&#128247; Camara</button>
+            <button class="btn btn-s" id="btnGal">&#128193; Galeria</button>
+        </div>
+    </div>
+    <input type="file" id="camInput" accept="image/*" capture="environment" class="hidden">
+    <input type="file" id="galInput" accept="image/*" class="hidden">
+
+    <div class="srch-section">
+        <div class="srch-box">
+            <input type="search" id="searchInput" placeholder="Escribe el nombre de la serie..." autocomplete="off">
+        </div>
+        <div class="sr" id="searchResults">
+            <div class="hint">Escribi al menos 2 letras para buscar la serie</div>
+        </div>
+    </div>
+</section>
+
+<!-- ===== EPISODE SELECT ===== -->
+<section id="view-episode" class="view">
+    <div class="ep-banner">
+        <div class="po" id="epPoster"><span style="color:#555">&#127916;</span></div>
+        <div class="if">
+            <h2 id="epTitle">---</h2>
+            <div class="sb" id="epSub">Cargando...</div>
+        </div>
+    </div>
+    <div id="epEditBadge" class="edit-badge hidden">&#9998; Editando registro existente</div>
+    <div class="ep-form">
+        <div class="f-row">
+            <div class="fg">
+                <label for="seasonSel">Temporada</label>
+                <select id="seasonSel"></select>
+            </div>
+            <div class="fg">
+                <label for="episodeSel">Episodio</label>
+                <select id="episodeSel"></select>
+            </div>
+        </div>
+        <div class="ep-list" id="epList"></div>
+        <div id="sugBox" class="hidden"></div>
+        <button class="btn btn-p btn-full mt-12" id="btnSaveEp">Guardar episodio</button>
+        <button class="btn btn-s btn-full mt-8" id="btnCancelEp">Cancelar</button>
+    </div>
+</section>
+
+<!-- ===== SETTINGS ===== -->
+<section id="view-settings" class="view">
+    <div class="s-group">
+        <h3>TMDB (buscar series)</h3>
+        <label for="tmdbKeyInput">API Key</label>
+        <input type="text" id="tmdbKeyInput" placeholder="TMDB API Key">
+        <div class="help">Gratis en <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a></div>
+    </div>
+
+    <div class="s-group">
+        <h3>Sincronizacion online (JSONBin)</h3>
+        <label for="jsonbinKey">JSONBin API Key</label>
+        <input type="text" id="jsonbinKey" placeholder="JSONBin API Key (opcional)">
+        <div class="help">
+            1. Crea cuenta gratis en <a href="https://jsonbin.io" target="_blank" rel="noopener">jsonbin.io</a><br>
+            2. Copia tu API Key (esta en la pagina principal)<br>
+            3. Pega aca y toca "Crear Bin" para generar el enlace<br><br>
+            <strong>Si da error 401:</strong> Anda a <a href="https://jsonbin.io" target="_blank">jsonbin.io</a>, inicia sesion, crea un Bin manual (Bins > New Bin), copia el ID de la URL (ej: https://api.jsonbin.io/v3/b/<strong>654abc123</strong>) y pegalo abajo en "Bin ID"
+        </div>
+        <button class="btn btn-s btn-full mt-8" id="btnCreateBin">Crear Bin de sincronizacion</button>
+        <div id="binStatus" class="sync-status mt-8">No configurado</div>
+        <div id="shareSection" class="hidden mt-8">
+            <label style="margin-top:8px">O pega el ID del Bin si lo creaste manualmente:</label>
+            <input type="text" id="manualBinId" placeholder="Bin ID (ej: 654abc...)" style="width:100%;padding:10px 12px;border-radius:7px;border:1px solid #2a2a4a;background:#12122a;color:#fff;font-size:13px;outline:none;margin-bottom:6px">
+            <button class="btn btn-s btn-sm" id="btnSetBinId">Usar este Bin ID</button>
+            <label style="margin-top:12px">Link para compartir con tu familia:</label>
+            <div class="share-link" id="shareLink">---</div>
+            <button class="btn btn-s btn-sm" id="btnCopyLink">Copiar link</button>
+            <button class="btn btn-s btn-sm" id="btnSyncNow">Sincronizar ahora</button>
+        </div>
+    </div>
+
+    <div class="s-group">
+        <h3>Datos</h3>
+        <button class="btn btn-d btn-full" id="btnClearData">Borrar todo el historial</button>
+    </div>
+    <div class="text-c fs-small" style="padding:8px">v1.2 &middot; Datos guardados localmente y en la nube (opcional)</div>
+</section>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function() {
+    'use strict';
+
+    const DEF_TMDB_KEY = 'e641d270ee9f4def0590dd4c8728deaa';
+    const DEF_JSONBIN_KEY = '$2a$10$NdcWo6MnXWFYfGjiGE1fJe/pqGn4NoMNk.nkQjzmf3AgqiVIejkba';
+
+    // ===== STATE =====
+    const S = {
+        history: [],
+        settings: { tmdbKey: DEF_TMDB_KEY, jsonbinKey: DEF_JSONBIN_KEY, binId: '6a5bab50da38895dfe6f9cf4' },
+        photoDataURL: null,
+        searchResults: [],
+        selectedSeries: null,
+        seriesDetails: null,
+        seasonEpisodes: [],
+        nextEpSuggestion: null,
+        editEntryId: null,    // if set, we're editing an existing entry
+        sharedView: null      // bin ID when viewing shared progress
+    };
+
+    // ===== DOM =====
+    const $ = id => document.getElementById(id);
+    const views = ['dashboard','shared','capture','episode','settings'];
+
+    function showView(id) {
+        views.forEach(v => $(`view-${v}`).classList.toggle('active', v === id));
+        const el = $(`view-${id}`);
+        if (el) el.scrollTop = 0;
+    }
+
+    // ===== TOAST =====
+    let _tt;
+    function toast(msg, type) {
+        const el = $('toast');
+        el.textContent = msg;
+        el.className = 'toast show' + (type==='ok'?' ok':type==='err'?' err':'');
+        clearTimeout(_tt);
+        _tt = setTimeout(() => el.classList.remove('show'), 2800);
+    }
+
+    // ===== STORAGE =====
+    function loadLocal() {
+        try {
+            const r = localStorage.getItem('seriesTracker');
+            if (r) {
+                const d = JSON.parse(r);
+                S.history = d.history || [];
+                S.settings = Object.assign({}, S.settings, d.settings || {});
+            }
+        } catch(e) {}
+        if (!S.settings.tmdbKey) S.settings.tmdbKey = DEF_TMDB_KEY;
+        if (!S.settings.jsonbinKey) S.settings.jsonbinKey = DEF_JSONBIN_KEY;
+        if (!S.settings.binId) S.settings.binId = '6a5bab50da38895dfe6f9cf4';
+    }
+    function saveLocal() {
+        try {
+            localStorage.setItem('seriesTracker', JSON.stringify({
+                history: S.history,
+                settings: S.settings
+            }));
+        } catch(e) { toast('Error al guardar local', 'err'); }
+    }
+
+    // ===== HELPERS =====
+    function esc(s) { if(!s)return''; const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+    function compressImg(dataURL, maxW, quality) {
+        return new Promise(resolve => {
+            const img = new Image();
+            img.onload = function() {
+                const c = document.createElement('canvas');
+                let w = img.width, h = img.height;
+                if (w > maxW) { h = h * maxW / w; w = maxW; }
+                c.width = w; c.height = h;
+                c.getContext('2d').drawImage(img, 0, 0, w, h);
+                resolve(c.toDataURL('image/jpeg', quality || 0.35));
+            };
+            img.onerror = () => resolve(dataURL);
+            img.src = dataURL;
+        });
+    }
+
+    function formatDate(ts) {
+        if (!ts) return '';
+        return new Date(ts).toLocaleDateString('es-ES', { day:'numeric', month:'short' });
+    }
+
+    // ===== JSONBIN.IO SYNC =====
+    function getJsonbinConfig() {
+        const key = S.settings.jsonbinKey.trim();
+        const bid = S.settings.binId.trim();
+        return { key, bid };
+    }
+
+    async function syncToCloud() {
+        const { key, bid } = getJsonbinConfig();
+        if (!key || !bid) return false;
+
+        try {
+            const resp = await fetch(`https://api.jsonbin.io/v3/b/${bid}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': key
+                },
+                body: JSON.stringify({
+                    history: S.history,
+                    updatedAt: new Date().toISOString()
+                })
+            });
+            if (!resp.ok) throw new Error('HTTP '+resp.status);
+            return true;
+        } catch(e) {
+            console.warn('Cloud sync error:', e);
+            return false;
+        }
+    }
+
+    async function syncFromCloud() {
+        const { key, bid } = getJsonbinConfig();
+        if (!key || !bid) return null;
+
+        try {
+            const resp = await fetch(`https://api.jsonbin.io/v3/b/${bid}/latest`, {
+                headers: key ? { 'X-Master-Key': key } : {}
+            });
+            if (!resp.ok) throw new Error('HTTP '+resp.status);
+            const data = await resp.json();
+            return data.record;
+        } catch(e) {
+            console.warn('Cloud fetch error:', e);
+            return null;
+        }
+    }
+
+    async function pullAndMergeFromCloud() {
+        const data = await syncFromCloud();
+        if (data && data.history && Array.isArray(data.history)) {
+            // Merge: keep local + cloud, dedup by id
+            const localIds = new Set(S.history.map(e => e.id));
+            const newEntries = data.history.filter(e => !localIds.has(e.id));
+            if (newEntries.length > 0) {
+                S.history = [...S.history, ...newEntries];
+                S.history.sort((a, b) => (a.timestamp||'') < (b.timestamp||'') ? -1 : 1);
+                saveLocal();
+                renderDash();
+                toast(`Sincronizado: ${newEntries.length} nuevo(s)`, 'ok');
+            } else {
+                toast('Ya esta sincronizado', 'ok');
+            }
+        } else {
+            toast('No hay datos en la nube aun', 'ok');
+        }
+    }
+
+    async function createJsonbin() {
+        const key = S.settings.jsonbinKey.trim();
+        if (!key) { toast('Primero ingresa tu JSONBin API Key', 'err'); return; }
+
+        try {
+            const resp = await fetch('https://api.jsonbin.io/v3/b', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': key,
+                    'X-Bin-Name': 'SeriesTracker'
+                },
+                body: JSON.stringify({
+                    history: S.history,
+                    updatedAt: new Date().toISOString()
+                })
+            });
+            if (!resp.ok) throw new Error('HTTP '+resp.status);
+            const data = await resp.json();
+            S.settings.binId = data.metadata.id;
+            saveLocal();
+            updateShareUI();
+            toast('Bin creado! Comparti el link con tu familia', 'ok');
+        } catch(e) {
+            let msg = e.message;
+            if (e.message.includes('401')) {
+                msg = 'API Key invalida. Anda a jsonbin.io > copia TU API KEY de la pagina principal y pegala en el campo de arriba.';
+            }
+            toast('Error: '+msg, 'err');
+        }
+    }
+
+    async function syncNow() {
+        const ok = await syncToCloud();
+        if (ok) { toast('Sincronizado a la nube', 'ok'); updateShareUI(); }
+        else { toast('Error al sincronizar. Revisa tu API Key', 'err'); }
+    }
+
+    function updateShareUI() {
+        const { key, bid } = getJsonbinConfig();
+        const statusEl = $('binStatus');
+        const shareSection = $('shareSection');
+        const shareLink = $('shareLink');
+
+        if (key && bid) {
+            statusEl.textContent = '&#10003; Sincronizacion activa';
+            statusEl.className = 'sync-status ok mt-8';
+            shareSection.classList.remove('hidden');
+            // Build share link using the current page origin
+            const origin = window.location.origin + window.location.pathname.replace(/\/?$/, '');
+            shareLink.textContent = origin + '?shared=' + bid;
+        } else if (key && !bid) {
+            statusEl.textContent = 'API Key lista. Falta crear el Bin.';
+            statusEl.className = 'sync-status mt-8';
+            shareSection.classList.add('hidden');
+        } else {
+            statusEl.textContent = 'No configurado';
+            statusEl.className = 'sync-status mt-8';
+            shareSection.classList.add('hidden');
+        }
+    }
+
+    // ===== SHARED VIEW =====
+    async function loadSharedView(binId) {
+        showView('shared');
+        $('headerTitle').textContent = 'Avances compartidos';
+        $('btnSettings').classList.add('hidden');
+        $('btnShare').classList.add('hidden');
+
+        try {
+            const resp = await fetch(`https://api.jsonbin.io/v3/b/${binId}/latest`);
+            if (!resp.ok) throw new Error('HTTP '+resp.status);
+            const data = await resp.json();
+            const rec = data.record;
+            const history = rec.history || [];
+
+            const ss = new Set(history.map(e => e.seriesName));
+            $('shStatSeries').textContent = ss.size;
+            $('shStatEpisodes').textContent = history.length;
+
+            const c = $('sharedHistoryContainer');
+            if (!history.length) {
+                c.innerHTML = '<div class="empty-state"><div class="icon">&#128253;</div><p>Sin episodios registrados aun</p></div>';
+                return;
+            }
+
+            const items = [...history].reverse().slice(0, 80);
+            let html = '<div class="h-list">';
+            items.forEach(e => {
+                const pu = e.posterPath ? 'https://image.tmdb.org/t/p/w92'+e.posterPath : null;
+                html += `
+                    <div class="h-item" style="cursor:default">
+                        <div class="th">${e.photo ? `<img src="${e.photo}" alt="">` : (pu?`<img src="${pu}" alt="">`:'&#127916;')}</div>
+                        <div class="inf">
+                            <div class="n">${esc(e.seriesName)}</div>
+                            <div class="s"><span class="bg">T${e.season} E${e.episode}</span> ${e.episodeName?'&middot; '+esc(e.episodeName):''}</div>
+                            <div class="d">${formatDate(e.timestamp)}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            html += '</div>';
+            c.innerHTML = html;
+
+            // Auto-refresh every 30s
+            setTimeout(() => loadSharedView(binId), 30000);
+
+        } catch(e) {
+            $('sharedHistoryContainer').innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">&#9888;</div>
+                    <p>Error al cargar avances.<br>Verifica que el link sea correcto.</p>
+                </div>
+            `;
+        }
+    }
+
+    // ===== DASHBOARD =====
+    function renderDash() {
+        const h = S.history;
+        const ss = new Set(h.map(e => e.seriesName));
+        $('statSeries').textContent = ss.size;
+        $('statEpisodes').textContent = h.length;
+
+        // Show/hide share button
+        const { key, bid } = getJsonbinConfig();
+        $('btnShare').classList.toggle('hidden', !(key && bid));
+
+        const c = $('historyContainer');
+        if (!h.length) {
+            c.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">&#128253;</div>
+                    <p>Todavia no registraste episodios.<br>Toca + para empezar.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const items = [...h].reverse().slice(0, 100);
+        let html = '<div class="h-list">';
+        items.forEach(e => {
+            const pu = e.posterPath ? 'https://image.tmdb.org/t/p/w92'+e.posterPath : null;
+            html += `
+                <div class="h-item" data-id="${e.id}">
+                    <div class="th">${e.photo ? `<img src="${e.photo}" alt="">` : (pu?`<img src="${pu}" alt="">`:'&#127916;')}</div>
+                    <div class="inf">
+                        <div class="n">${esc(e.seriesName)}</div>
+                        <div class="s"><span class="bg">T${e.season} E${e.episode}</span> ${e.episodeName?'&middot; '+esc(e.episodeName):''}</div>
+                        <div class="d">${formatDate(e.timestamp)}</div>
+                    </div>
+                    <button class="del" data-id="${e.id}">&times;</button>
+                </div>
+            `;
+        });
+        html += '</div>';
+        c.innerHTML = html;
+
+        // Edit: tap on item body
+        c.querySelectorAll('.h-item').forEach(el => {
+            el.addEventListener('click', function(e) {
+                if (e.target.closest('.del')) return;
+                const id = this.dataset.id;
+                const entry = S.history.find(x => x.id === id);
+                if (entry) openEditEntry(entry);
+            });
+        });
+
+        // Delete
+        c.querySelectorAll('.del').forEach(b => {
+            b.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const id = this.dataset.id;
+                if (confirm('Eliminar este registro?')) {
+                    S.history = S.history.filter(x => x.id !== id);
+                    saveLocal();
+                    syncToCloud();
+                    renderDash();
+                    toast('Eliminado', 'ok');
+                }
+            });
+        });
+    }
+
+    // ===== EDIT ENTRY =====
+    function openEditEntry(entry) {
+        S.editEntryId = entry.id;
+        S.photoDataURL = entry.photo || null;
+
+        // Create a fake series object from the entry
+        const fakeSeries = {
+            id: entry.seriesId || 0,
+            name: entry.seriesName,
+            poster_path: entry.posterPath || ''
+        };
+        S.selectedSeries = fakeSeries;
+
+        showView('episode');
+        $('epTitle').textContent = entry.seriesName;
+        $('epSub').textContent = 'Editando...';
+        const pe = $('epPoster');
+        if (entry.posterPath) {
+            pe.innerHTML = '<img src="https://image.tmdb.org/t/p/w154'+entry.posterPath+'" alt="">';
+        } else if (entry.photo) {
+            pe.innerHTML = '<img src="'+entry.photo+'" alt="">';
+        } else {
+            pe.innerHTML = '<span style="color:#555">&#127916;</span>';
+        }
+
+        $('epEditBadge').classList.remove('hidden');
+
+        // Suggest keeping same season, next episode
+        S.nextEpSuggestion = { season: entry.season, episode: entry.episode };
+
+        // Try to get full series data for seasons/episodes
+        const key = S.settings.tmdbKey.trim();
+        if (key && fakeSeries.id > 0) {
+            fetchSeriesDetails(fakeSeries.id, entry.season, entry.episode);
+        } else {
+            // Fallback: allow manual entry
+            $('seasonSel').innerHTML = `<option value="${entry.season}">Temporada ${entry.season}</option>`;
+            $('episodeSel').innerHTML = `<option value="${entry.episode}">Episodio ${entry.episode}</option>`;
+            $('epList').innerHTML = `
+                <div class="ep-it sel" data-ep="${entry.episode}">
+                    <div class="en">E${entry.episode}</div>
+                    <div class="enm">${esc(entry.episodeName||'')}</div>
+                </div>`;
+            $('epSub').textContent = 'Editando manualmente';
+        }
+    }
+
+    async function fetchSeriesDetails(seriesId, defSeason, defEp) {
+        const key = S.settings.tmdbKey.trim();
+        try {
+            const r = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}?api_key=${encodeURIComponent(key)}&language=es-ES`);
+            if (!r.ok) throw new Error('HTTP '+r.status);
+            const d = await r.json();
+            S.seriesDetails = d;
+
+            const seasons = (d.seasons || []).filter(s => s.season_number > 0);
+            const sc = Math.max(seasons.length, 1);
+            const ss = $('seasonSel');
+            ss.innerHTML = '';
+            for (let i = 1; i <= sc; i++) {
+                const o = document.createElement('option');
+                o.value = i; o.textContent = 'Temporada '+i;
+                ss.appendChild(o);
+            }
+            const targetSeason = Math.min(defSeason, sc);
+            ss.value = targetSeason;
+
+            $('epSub').textContent = d.number_of_seasons ? d.number_of_seasons+' temporadas' : sc+' temporada(s)';
+            await loadEpisodes(seriesId, targetSeason, defEp);
+
+            ss.onchange = function() { loadEpisodes(seriesId, parseInt(this.value), null); };
+
+        } catch(e) {
+            $('epSub').textContent = 'Error al cargar datos';
+        }
+    }
+
+    // ===== CAPTURE / SEARCH =====
+    function handleFile(file) {
+        if (!file || !file.type.startsWith('image/')) return;
+        const r = new FileReader();
+        r.onload = function(e) {
+            S.photoDataURL = e.target.result;
+            $('photoPreview').src = S.photoDataURL;
+            $('photoPreview').classList.remove('hidden');
+            $('photoPlaceholder').classList.add('hidden');
+            toast('Foto lista! Busca la serie', 'ok');
+            $('searchInput').focus();
+        };
+        r.readAsDataURL(file);
+    }
+
+    let searchTimer;
+    function onSearchInput() {
+        clearTimeout(searchTimer);
+        const q = $('searchInput').value.trim();
+        if (q.length < 2) {
+            $('searchResults').innerHTML = '<div class="hint">Escribi al menos 2 letras para buscar</div>';
+            return;
+        }
+        $('searchResults').innerHTML = '<div class="load">Buscando...</div>';
+        searchTimer = setTimeout(() => searchTMDB(q), 350);
+    }
+
+    async function searchTMDB(q) {
+        const key = S.settings.tmdbKey.trim();
+        if (!key) { $('searchResults').innerHTML = '<div class="hint">Configura API Key en Ajustes</div>'; return; }
+        try {
+            const r = await fetch(`https://api.themoviedb.org/3/search/tv?api_key=${encodeURIComponent(key)}&query=${encodeURIComponent(q)}&language=es-ES`);
+            if (!r.ok) throw new Error('HTTP '+r.status);
+            const d = await r.json();
+            S.searchResults = d.results || [];
+            renderSR(S.searchResults);
+        } catch(e) {
+            $('searchResults').innerHTML = '<div class="no">Error de conexion</div>';
+        }
+    }
+
+    function renderSR(results) {
+        const c = $('searchResults');
+        if (!results || !results.length) { c.innerHTML = '<div class="no">No se encontraron series</div>'; return; }
+        let html = '';
+        results.forEach(s => {
+            const yr = s.first_air_date ? s.first_air_date.substring(0,4) : '';
+            const pu = s.poster_path ? 'https://image.tmdb.org/t/p/w92'+s.poster_path : null;
+            html += `
+                <div class="s-card" data-id="${s.id}">
+                    <div class="po">${pu ? `<img src="${pu}" alt="" loading="lazy">` : '&#127916;'}</div>
+                    <div class="if">
+                        <div class="nn">${esc(s.name)}</div>
+                        ${yr ? '<div class="yy">'+yr+'</div>' : ''}
+                        <div class="oo">${esc((s.overview||'').substring(0,100))}</div>
+                    </div>
+                </div>
+            `;
+        });
+        c.innerHTML = html;
+        c.querySelectorAll('.s-card').forEach(el => {
+            el.addEventListener('click', function() {
+                const id = parseInt(this.dataset.id);
+                const s = results.find(x => x.id === id);
+                if (s) openNewEntry(s);
+            });
+        });
+    }
+
+    // ===== OPEN NEW ENTRY =====
+    function openNewEntry(series) {
+        S.editEntryId = null;
+        S.selectedSeries = series;
+        S.nextEpSuggestion = null;
+        $('epEditBadge').classList.add('hidden');
+        showView('episode');
+
+        $('epTitle').textContent = series.name;
+        $('epSub').textContent = 'Cargando...';
+        const pe = $('epPoster');
+        if (series.poster_path) {
+            pe.innerHTML = '<img src="https://image.tmdb.org/t/p/w154'+series.poster_path+'" alt="">';
+        } else {
+            pe.innerHTML = '<span style="color:#555">&#127916;</span>';
+        }
+
+        // Next episode suggestion from history
+        const hist = S.history.filter(e => e.seriesId === series.id);
+        if (hist.length > 0) {
+            const last = hist.reduce((a,b) => a.timestamp > b.timestamp ? a : b);
+            S.nextEpSuggestion = { season: last.season, episode: last.episode + 1 };
+        }
+
+        const key = S.settings.tmdbKey.trim();
+        if (!key) { $('epSub').textContent = 'Configura API Key'; return; }
+
+        (async () => {
+            try {
+                const r = await fetch(`https://api.themoviedb.org/3/tv/${series.id}?api_key=${encodeURIComponent(key)}&language=es-ES`);
+                if (!r.ok) throw new Error('HTTP '+r.status);
+                const d = await r.json();
+                S.seriesDetails = d;
+
+                const seasons = (d.seasons || []).filter(s => s.season_number > 0);
+                const sc = Math.max(seasons.length, 1);
+                const ss = $('seasonSel');
+                ss.innerHTML = '';
+                for (let i = 1; i <= sc; i++) {
+                    const o = document.createElement('option');
+                    o.value = i; o.textContent = 'Temporada '+i;
+                    ss.appendChild(o);
+                }
+
+                let defSeason = sc;
+                if (S.nextEpSuggestion && S.nextEpSuggestion.season <= sc) defSeason = S.nextEpSuggestion.season;
+                ss.value = defSeason;
+
+                $('epSub').textContent = d.number_of_seasons ? d.number_of_seasons+' temporadas' : sc+' temporada(s)';
+                await loadEpisodes(series.id, defSeason, S.nextEpSuggestion ? S.nextEpSuggestion.episode : 1);
+
+                ss.onchange = function() { loadEpisodes(series.id, parseInt(this.value), null); };
+
+            } catch(e) {
+                $('epSub').textContent = 'Error al cargar';
+            }
+        })();
+    }
+
+    // ===== LOAD EPISODES =====
+    async function loadEpisodes(seriesId, seasonNum, selectEp) {
+        const key = S.settings.tmdbKey.trim();
+        const es = $('episodeSel');
+        const el = $('epList');
+        const sug = $('sugBox');
+
+        es.innerHTML = '<option>Cargando...</option>';
+        el.innerHTML = '<div style="color:#555;padding:6px;font-size:12px">Cargando...</div>';
+        sug.classList.add('hidden');
+
+        try {
+            const r = await fetch(`https://api.themoviedb.org/3/tv/${seriesId}/season/${seasonNum}?api_key=${encodeURIComponent(key)}&language=es-ES`);
+            if (!r.ok) throw new Error('HTTP '+r.status);
+            const d = await r.json();
+            const eps = d.episodes || [];
+            S.seasonEpisodes = eps;
+
+            es.innerHTML = '';
+            let defEp = selectEp || 1;
+
+            let lh = '';
+            eps.forEach(ep => {
+                const o = document.createElement('option');
+                o.value = ep.episode_number;
+                o.textContent = ep.episode_number+'. '+(ep.name||'Sin titulo');
+                es.appendChild(o);
+                const sel = ep.episode_number === defEp;
+                lh += `<div class="ep-it ${sel?'sel':''}" data-ep="${ep.episode_number}">
+                    <div class="en">E${ep.episode_number}</div>
+                    <div class="enm">${esc(ep.name||'Sin titulo')}</div>
+                </div>`;
+            });
+
+            el.innerHTML = lh;
+            if (eps.length) es.value = defEp;
+
+            // Suggestion tag
+            if (S.nextEpSuggestion && S.nextEpSuggestion.season === seasonNum && !S.editEntryId) {
+                const exists = eps.some(e => e.episode_number === S.nextEpSuggestion.episode);
+                if (exists) {
+                    sug.classList.remove('hidden');
+                    sug.innerHTML = '<div class="tag tag-sug">&#127919; Siguiente: T'+S.nextEpSuggestion.season+' E'+S.nextEpSuggestion.episode+'</div>';
+                }
+            }
+
+            el.querySelectorAll('.ep-it').forEach(item => {
+                item.addEventListener('click', function() {
+                    el.querySelectorAll('.ep-it').forEach(x => x.classList.remove('sel'));
+                    this.classList.add('sel');
+                    es.value = this.dataset.ep;
+                });
+            });
+
+            es.onchange = function() {
+                el.querySelectorAll('.ep-it').forEach(x => x.classList.toggle('sel', x.dataset.ep === this.value));
+            };
+
+            if (!eps.length) el.innerHTML = '<div style="color:#555;padding:6px;font-size:12px">Sin episodios</div>';
+
+        } catch(e) {
+            es.innerHTML = '<option>Error</option>';
+            el.innerHTML = '<div style="color:#cf6679;padding:6px;font-size:12px">Error</div>';
+        }
+    }
+
+    // ===== SAVE =====
+    async function saveEntry() {
+        const series = S.selectedSeries;
+        if (!series) { toast('Selecciona una serie', 'err'); return; }
+
+        const season = parseInt($('seasonSel').value);
+        const episode = parseInt($('episodeSel').value);
+        if (!season || !episode) { toast('Selecciona temporada y episodio', 'err'); return; }
+
+        const epData = S.seasonEpisodes.find(e => e.episode_number === episode);
+
+        let photoThumb = null;
+        if (S.photoDataURL) {
+            photoThumb = await compressImg(S.photoDataURL, 160, 0.3);
+        }
+
+        if (S.editEntryId) {
+            // === UPDATE EXISTING ===
+            const idx = S.history.findIndex(e => e.id === S.editEntryId);
+            if (idx >= 0) {
+                S.history[idx].season = season;
+                S.history[idx].episode = episode;
+                S.history[idx].episodeName = epData ? (epData.name || '') : '';
+                S.history[idx].timestamp = new Date().toISOString();
+                if (photoThumb) S.history[idx].photo = photoThumb;
+                toast('Actualizado! T'+season+' E'+episode, 'ok');
+            }
+        } else {
+            // === CREATE NEW ===
+            const entry = {
+                id: Date.now().toString(36) + Math.random().toString(36).substring(2,6),
+                seriesName: series.name,
+                seriesId: series.id,
+                posterPath: series.poster_path || '',
+                season, episode,
+                episodeName: epData ? (epData.name || '') : '',
+                timestamp: new Date().toISOString(),
+                photo: photoThumb
+            };
+            S.history.push(entry);
+            toast(series.name+' - T'+season+' E'+episode+' guardado!', 'ok');
+        }
+
+        saveLocal();
+        // Sync to cloud in background
+        syncToCloud();
+
+        S.editEntryId = null;
+        showView('dashboard');
+        renderDash();
+    }
+
+    // ===== SETTINGS =====
+    function openSettingsFn() {
+        $('tmdbKeyInput').value = S.settings.tmdbKey || '';
+        $('jsonbinKey').value = S.settings.jsonbinKey || '';
+        updateShareUI();
+        showView('settings');
+    }
+
+    function saveTmdbKey() {
+        const k = $('tmdbKeyInput').value.trim();
+        if (k !== S.settings.tmdbKey) {
+            S.settings.tmdbKey = k;
+            saveLocal();
+        }
+    }
+
+    function saveJsonbinKey() {
+        const k = $('jsonbinKey').value.trim();
+        if (k !== S.settings.jsonbinKey) {
+            S.settings.jsonbinKey = k;
+            saveLocal();
+            updateShareUI();
+        }
+    }
+
+    // ===== SHARE LINK =====
+    function copyShareLink() {
+        const el = $('shareLink');
+        const text = el.textContent;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(text).then(() => toast('Link copiado!', 'ok'));
+        } else {
+            // Fallback
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            document.execCommand('copy');
+            document.body.removeChild(ta);
+            toast('Link copiado!', 'ok');
+        }
+    }
+
+    // ===== URL PARAMETER HANDLING =====
+    function checkSharedParam() {
+        const params = new URLSearchParams(window.location.search);
+        const shared = params.get('shared');
+        if (shared && shared.length > 5) {
+            S.sharedView = shared;
+            loadSharedView(shared);
+            return true;
+        }
+        return false;
+    }
+
+    // ===== INIT =====
+    function init() {
+        loadLocal();
+
+        // Check if shared view
+        if (checkSharedParam()) return;
+
+        // Normal mode
+        renderDash();
+
+        // --- FAB ---
+        $('btnAddEntry').addEventListener('click', function() {
+            S.photoDataURL = null;
+            S.searchResults = [];
+            S.selectedSeries = null;
+            S.editEntryId = null;
+            $('photoPreview').classList.add('hidden');
+            $('photoPlaceholder').classList.remove('hidden');
+            $('searchInput').value = '';
+            $('searchResults').innerHTML = '<div class="hint">Escribi al menos 2 letras para buscar la serie</div>';
+            showView('capture');
+        });
+
+        // --- Camera ---
+        $('btnCam').addEventListener('click', function() { showView('capture'); $('camInput').click(); });
+        $('btnGal').addEventListener('click', function() { showView('capture'); $('galInput').click(); });
+        $('camInput').addEventListener('change', function(e) { if(e.target.files?.[0]) handleFile(e.target.files[0]); });
+        $('galInput').addEventListener('change', function(e) { if(e.target.files?.[0]) handleFile(e.target.files[0]); });
+
+        // --- Search ---
+        $('searchInput').addEventListener('input', onSearchInput);
+
+        // --- Episode ---
+        $('btnSaveEp').addEventListener('click', saveEntry);
+        $('btnCancelEp').addEventListener('click', function() { showView('capture'); });
+
+        // --- Settings ---
+        $('btnSettings').addEventListener('click', openSettingsFn);
+        $('tmdbKeyInput').addEventListener('change', saveTmdbKey);
+        $('tmdbKeyInput').addEventListener('blur', saveTmdbKey);
+        $('jsonbinKey').addEventListener('change', saveJsonbinKey);
+        $('jsonbinKey').addEventListener('blur', saveJsonbinKey);
+
+        // --- JSONBin ---
+        $('btnCreateBin').addEventListener('click', createJsonbin);
+        $('btnSyncNow').addEventListener('click', syncNow);
+        $('btnCopyLink').addEventListener('click', copyShareLink);
+        $('btnSetBinId').addEventListener('click', function() {
+            const id = $('manualBinId').value.trim();
+            if (id.length < 5) { toast('ID de Bin invalido', 'err'); return; }
+            S.settings.binId = id;
+            saveLocal();
+            updateShareUI();
+            toast('Bin ID configurado!', 'ok');
+        });
+        $('btnShare').addEventListener('click', function() {
+            const { bid } = getJsonbinConfig();
+            if (bid) {
+                const origin = window.location.origin + window.location.pathname.replace(/\/?$/, '');
+                const link = origin + '?shared=' + bid;
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(link).then(() => toast('Link copiado al portapapeles!', 'ok'));
+                } else {
+                    toast('Link: ' + link, 'ok');
+                }
+            }
+        });
+
+        // --- Clear ---
+        $('btnClearData').addEventListener('click', function() {
+            if (confirm('Borrar TODO el historial?')) {
+                if (confirm('Confirmar: no se puede deshacer.')) {
+                    S.history = [];
+                    saveLocal();
+                    renderDash();
+                    toast('Historial borrado', 'ok');
+                }
+            }
+        });
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+    if (document.readyState === 'complete' || document.readyState === 'interactive') init();
+})();
+</script>
+</body>
+</html>

@@ -55,6 +55,7 @@
         .empty-state{text-align:center;padding:40px 20px;color:#555;flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px}
         .empty-state .icon{font-size:40px;color:#333}
         .empty-state p{font-size:14px;line-height:1.5}
+        .setup-nudge{text-align:center;padding:8px 12px;background:#2a2a4a22;border:1px dashed #555;border-radius:8px;font-size:11px;color:#888;margin-bottom:10px}
 
         .h-list{display:flex;flex-direction:column;gap:6px}
         .h-item{
@@ -296,25 +297,27 @@
     </div>
 
     <div class="s-group">
-        <h3>Sincronizacion online (JSONBin)</h3>
-        <label for="jsonbinKey">JSONBin API Key</label>
-        <input type="text" id="jsonbinKey" placeholder="JSONBin API Key (opcional)">
+        <h3>Sincronizacion online (JSONBin.io)</h3>
+        <label for="jsonbinKey">API Key de JSONBin</label>
+        <input type="text" id="jsonbinKey" placeholder="Tu API Key de JSONBin.io">
+        <label style="margin-top:8px" for="manualBinId">ID del Bin (opcional)</label>
+        <input type="text" id="manualBinId" placeholder="ID del bin (ej: 6a5bab50da38895dfe6f9cf4)">
         <div class="help">
-            1. Crea cuenta gratis en <a href="https://jsonbin.io" target="_blank" rel="noopener">jsonbin.io</a><br>
-            2. Copia tu API Key (esta en la pagina principal)<br>
-            3. Pega aca y toca "Crear Bin" para generar el enlace<br><br>
-            <strong>Si da error 401:</strong> Anda a <a href="https://jsonbin.io" target="_blank">jsonbin.io</a>, inicia sesion, crea un Bin manual (Bins > New Bin), copia el ID de la URL (ej: https://api.jsonbin.io/v3/b/<strong>654abc123</strong>) y pegalo abajo en "Bin ID"
+            <strong>Opciones:</strong><br>
+            &bull; Ya tenes un bin creado? Pega el ID arriba y toca &quot;Usar este Bin&quot;<br>
+            &bull; No tenes bin? Toca &quot;Crear nuevo Bin&quot; (se crea automaticamente)<br>
+            &bull; La API Key la sacas de <a href="https://jsonbin.io/app/api-keys" target="_blank" rel="noopener">jsonbin.io/app/api-keys</a><br>
+            &bull; Tus claves se guardan SOLO en este navegador (localStorage). No se suben a GitHub.
         </div>
-        <button class="btn btn-s btn-full mt-8" id="btnCreateBin">Crear Bin de sincronizacion</button>
+        <button class="btn btn-s btn-full mt-8" id="btnSetBinId">Usar este Bin</button>
+        <button class="btn btn-s btn-full mt-8" id="btnCreateBin">Crear nuevo Bin</button>
         <div id="binStatus" class="sync-status mt-8">No configurado</div>
         <div id="shareSection" class="hidden mt-8">
-            <label style="margin-top:8px">O pega el ID del Bin si lo creaste manualmente:</label>
-            <input type="text" id="manualBinId" placeholder="Bin ID (ej: 654abc...)" style="width:100%;padding:10px 12px;border-radius:7px;border:1px solid #2a2a4a;background:#12122a;color:#fff;font-size:13px;outline:none;margin-bottom:6px">
-            <button class="btn btn-s btn-sm" id="btnSetBinId">Usar este Bin ID</button>
-            <label style="margin-top:12px">Link para compartir con tu familia:</label>
+            <label>Link para compartir con tu familia:</label>
             <div class="share-link" id="shareLink">---</div>
             <button class="btn btn-s btn-sm" id="btnCopyLink">Copiar link</button>
             <button class="btn btn-s btn-sm" id="btnSyncNow">Sincronizar ahora</button>
+            <button class="btn btn-s btn-sm" id="btnMakePublic">Hacer bin publico</button>
         </div>
     </div>
 
@@ -322,7 +325,7 @@
         <h3>Datos</h3>
         <button class="btn btn-d btn-full" id="btnClearData">Borrar todo el historial</button>
     </div>
-    <div class="text-c fs-small" style="padding:8px">v1.2 &middot; Datos guardados localmente y en la nube (opcional)</div>
+    <div class="text-c fs-small" style="padding:8px">v1.3 &middot; Datos guardados localmente. Claves nunca expuestas en el codigo.</div>
 </section>
 
 <div class="toast" id="toast"></div>
@@ -331,13 +334,12 @@
 (function() {
     'use strict';
 
-    const DEF_TMDB_KEY = 'e641d270ee9f4def0590dd4c8728deaa';
-    const DEF_JSONBIN_KEY = '$2a$10$NdcWo6MnXWFYfGjiGE1fJe/pqGn4NoMNk.nkQjzmf3AgqiVIejkba';
+    const DEF_TMDB_KEY = '';
 
     // ===== STATE =====
     const S = {
         history: [],
-        settings: { tmdbKey: DEF_TMDB_KEY, jsonbinKey: DEF_JSONBIN_KEY, binId: '6a5bab50da38895dfe6f9cf4' },
+        settings: { tmdbKey: DEF_TMDB_KEY, jsonbinKey: '', binId: '' },
         photoDataURL: null,
         searchResults: [],
         selectedSeries: null,
@@ -379,8 +381,6 @@
             }
         } catch(e) {}
         if (!S.settings.tmdbKey) S.settings.tmdbKey = DEF_TMDB_KEY;
-        if (!S.settings.jsonbinKey) S.settings.jsonbinKey = DEF_JSONBIN_KEY;
-        if (!S.settings.binId) S.settings.binId = '6a5bab50da38895dfe6f9cf4';
     }
     function saveLocal() {
         try {
@@ -417,8 +417,8 @@
 
     // ===== JSONBIN.IO SYNC =====
     function getJsonbinConfig() {
-        const key = S.settings.jsonbinKey.trim();
-        const bid = S.settings.binId.trim();
+        const key = (S.settings.jsonbinKey || '').trim();
+        const bid = (S.settings.binId || '').trim();
         return { key, bid };
     }
 
@@ -438,11 +438,14 @@
                     updatedAt: new Date().toISOString()
                 })
             });
-            if (!resp.ok) throw new Error('HTTP '+resp.status);
+            if (!resp.ok) {
+                const txt = await resp.text().catch(()=>'');
+                throw new Error('HTTP '+resp.status+': '+txt.substring(0,100));
+            }
             return true;
         } catch(e) {
             console.warn('Cloud sync error:', e);
-            return false;
+            throw e;
         }
     }
 
@@ -483,6 +486,26 @@
         }
     }
 
+    async function makeBinPublic() {
+        const { key, bid } = getJsonbinConfig();
+        if (!key || !bid) { toast('Configura JSONBin primero', 'err'); return; }
+        try {
+            const resp = await fetch(`https://api.jsonbin.io/v3/b/${bid}/meta/privacy`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': key,
+                    'X-Bin-Private': 'false'
+                },
+                body: '{}'
+            });
+            if (!resp.ok) throw new Error('HTTP '+resp.status);
+            toast('Bin ahora es publico! El link compartido ya funciona', 'ok');
+        } catch(e) {
+            toast('Error: '+e.message, 'err');
+        }
+    }
+
     async function createJsonbin() {
         const key = S.settings.jsonbinKey.trim();
         if (!key) { toast('Primero ingresa tu JSONBin API Key', 'err'); return; }
@@ -493,7 +516,8 @@
                 headers: {
                     'Content-Type': 'application/json',
                     'X-Master-Key': key,
-                    'X-Bin-Name': 'SeriesTracker'
+                    'X-Bin-Name': 'SeriesTracker',
+                    'X-Bin-Private': 'false'
                 },
                 body: JSON.stringify({
                     history: S.history,
@@ -505,7 +529,7 @@
             S.settings.binId = data.metadata.id;
             saveLocal();
             updateShareUI();
-            toast('Bin creado! Comparti el link con tu familia', 'ok');
+            toast('Bin creado y publico! Comparti el link con tu familia', 'ok');
         } catch(e) {
             let msg = e.message;
             if (e.message.includes('401')) {
@@ -516,9 +540,12 @@
     }
 
     async function syncNow() {
-        const ok = await syncToCloud();
-        if (ok) { toast('Sincronizado a la nube', 'ok'); updateShareUI(); }
-        else { toast('Error al sincronizar. Revisa tu API Key', 'err'); }
+        try {
+            const ok = await syncToCloud();
+            if (ok) { toast('Sincronizado a la nube', 'ok'); updateShareUI(); }
+        } catch(e) {
+            toast('Error: '+e.message, 'err');
+        }
     }
 
     function updateShareUI() {
@@ -591,10 +618,14 @@
             setTimeout(() => loadSharedView(binId), 30000);
 
         } catch(e) {
+            let extra = '';
+            if (e.message.includes('401')) {
+                extra = '<br><br><span style="font-size:12px;color:#888">El bin es privado. Pedile a quien creo el link que vaya a Ajustes > "Hacer bin publico".</span>';
+            }
             $('sharedHistoryContainer').innerHTML = `
                 <div class="empty-state">
                     <div class="icon">&#9888;</div>
-                    <p>Error al cargar avances.<br>Verifica que el link sea correcto.</p>
+                    <p>Error al cargar avances.${extra}</p>
                 </div>
             `;
         }
@@ -611,9 +642,20 @@
         const { key, bid } = getJsonbinConfig();
         $('btnShare').classList.toggle('hidden', !(key && bid));
 
+        // Setup nudge if TMDB or JSONBin not configured
+        const hasTmdb = !!(S.settings.tmdbKey || '').trim();
+        const hasJsonbin = !!(key && bid);
+        let nudgeHtml = '';
+        if (!hasTmdb || !hasJsonbin) {
+            nudgeHtml = '<div class="setup-nudge">';
+            if (!hasTmdb) nudgeHtml += '&#9888; Configura tu API Key de TMDB en Ajustes para buscar series. ';
+            if (!hasJsonbin) nudgeHtml += '&#9888; Configura JSONBin en Ajustes para sincronizar con tu familia.';
+            nudgeHtml += '</div>';
+        }
+
         const c = $('historyContainer');
         if (!h.length) {
-            c.innerHTML = `
+            c.innerHTML = nudgeHtml + `
                 <div class="empty-state">
                     <div class="icon">&#128253;</div>
                     <p>Todavia no registraste episodios.<br>Toca + para empezar.</p>
@@ -623,7 +665,7 @@
         }
 
         const items = [...h].reverse().slice(0, 100);
-        let html = '<div class="h-list">';
+        let html = (nudgeHtml || '') + '<div class="h-list">';
         items.forEach(e => {
             const pu = e.posterPath ? 'https://image.tmdb.org/t/p/w92'+e.posterPath : null;
             html += `
@@ -659,7 +701,7 @@
                 if (confirm('Eliminar este registro?')) {
                     S.history = S.history.filter(x => x.id !== id);
                     saveLocal();
-                    syncToCloud();
+                    try { syncToCloud(); } catch(e) {}
                     renderDash();
                     toast('Eliminado', 'ok');
                 }
@@ -983,7 +1025,7 @@
 
         saveLocal();
         // Sync to cloud in background
-        syncToCloud();
+        try { syncToCloud(); } catch(e) {}
 
         S.editEntryId = null;
         showView('dashboard');
@@ -1092,13 +1134,15 @@
         $('btnCreateBin').addEventListener('click', createJsonbin);
         $('btnSyncNow').addEventListener('click', syncNow);
         $('btnCopyLink').addEventListener('click', copyShareLink);
+        $('btnMakePublic').addEventListener('click', makeBinPublic);
         $('btnSetBinId').addEventListener('click', function() {
             const id = $('manualBinId').value.trim();
             if (id.length < 5) { toast('ID de Bin invalido', 'err'); return; }
             S.settings.binId = id;
+            S.settings.jsonbinKey = $('jsonbinKey').value.trim();
             saveLocal();
             updateShareUI();
-            toast('Bin ID configurado!', 'ok');
+            toast('Bin configurado!', 'ok');
         });
         $('btnShare').addEventListener('click', function() {
             const { bid } = getJsonbinConfig();
